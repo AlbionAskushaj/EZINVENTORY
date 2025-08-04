@@ -1,0 +1,23 @@
+# ───── dependencies ────────────────────────────────────────────────
+node_modules/
+.pnpm/                # pnpm's store in a monorepo
+.pnpm-store/
+modules/              # rare pnpm hoist pattern
+*.tsbuildinfo
+
+# ───── build artifacts ─────────────────────────────────────────────
+dist/
+build/
+frontend/dist/
+api/dist/
+
+# ───── environment / local config ─────────────────────────────────
+.env*
+!.env.example         # keep a template if you like
+.idea/
+.vscode/*
+!.vscode/extensions.json   # but you CAN share recommended extensions
+.DS_Store
+logs/
+npm-debug.log*
+pnpm-debug.log*
