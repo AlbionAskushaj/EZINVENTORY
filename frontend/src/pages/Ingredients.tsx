@@ -1,0 +1,456 @@
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+
+type Unit = {
+  _id: string;
+  code: string;
+  name: string;
+  precision: number;
+};
+
+type Ingredient = {
+  _id?: string;
+  sku: string;
+  name: string;
+  category: "food" | "alcohol";
+  baseUnit: string; // unit id
+  parLevel: number;
+  currentQty: number;
+  active?: boolean;
+};
+
+export default function IngredientsPage() {
+  const { token } = useAuth();
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
+  const [form, setForm] = useState<Ingredient>({
+    sku: "",
+    name: "",
+    category: "food",
+    baseUnit: "",
+    parLevel: 0,
+    currentQty: 0,
+  });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Ingredient>({
+    sku: "",
+    name: "",
+    category: "food",
+    baseUnit: "",
+    parLevel: 0,
+    currentQty: 0,
+  });
+
+  const [adjustId, setAdjustId] = useState<string | null>(null);
+  const [adjustDelta, setAdjustDelta] = useState<number>(0);
+  const [adjustReason, setAdjustReason] = useState<string>("");
+
+  const ingredientsUrl = `${import.meta.env.VITE_API_URL}/api/ingredients`;
+  const unitsUrl = `${import.meta.env.VITE_API_URL}/api/units`;
+
+  const unitIdToLabel = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of units) map.set(u._id, `${u.code} — ${u.name}`);
+    return map;
+  }, [units]);
+
+  async function loadAll() {
+    setLoading(true);
+    setError("");
+    try {
+      const [ingRes, unitRes] = await Promise.all([
+        fetch(`${ingredientsUrl}?active=true`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(unitsUrl, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const [ing, unit] = await Promise.all([ingRes.json(), unitRes.json()]);
+      setIngredients(ing);
+      setUnits(unit);
+      if (unit.length > 0 && !form.baseUnit) {
+        setForm((f) => ({ ...f, baseUnit: unit[0]._id }));
+      }
+    } catch (e: any) {
+      setError(e.message ?? "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  async function createIngredient(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      const res = await fetch(ingredientsUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sku: form.sku,
+          name: form.name,
+          category: form.category,
+          baseUnit: form.baseUnit,
+          parLevel: Number(form.parLevel),
+          currentQty: Number(form.currentQty),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed: ${res.status}`);
+      }
+      setForm({
+        sku: "",
+        name: "",
+        category: "food",
+        baseUnit: units[0]?._id || "",
+        parLevel: 0,
+        currentQty: 0,
+      });
+      await loadAll();
+    } catch (e: any) {
+      setError(e.message ?? "Failed to create ingredient");
+    }
+  }
+
+  function startEdit(ing: Ingredient) {
+    setEditingId(ing._id || null);
+    setEditForm({
+      sku: ing.sku,
+      name: ing.name,
+      category: ing.category,
+      baseUnit: ing.baseUnit,
+      parLevel: ing.parLevel,
+      currentQty: ing.currentQty ?? 0,
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(id: string) {
+    setError("");
+    try {
+      const res = await fetch(`${ingredientsUrl}/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: editForm.name,
+          category: editForm.category,
+          baseUnit: editForm.baseUnit,
+          parLevel: Number(editForm.parLevel),
+          currentQty: Number(editForm.currentQty),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed: ${res.status}`);
+      }
+      setEditingId(null);
+      await loadAll();
+    } catch (e: any) {
+      setError(e.message ?? "Failed to update ingredient");
+    }
+  }
+
+  function toOrder(par: number, current: number) {
+    const delta = Number(par) - Number(current);
+    return delta > 0 ? delta : 0;
+  }
+
+  function startAdjust(id: string) {
+    setAdjustId(id);
+    setAdjustDelta(0);
+    setAdjustReason("");
+  }
+
+  function cancelAdjust() {
+    setAdjustId(null);
+    setAdjustDelta(0);
+    setAdjustReason("");
+  }
+
+  async function saveAdjust(id: string) {
+    setError("");
+    try {
+      const res = await fetch(`${ingredientsUrl}/${id}/adjust`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          delta: Number(adjustDelta),
+          reason: adjustReason || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Request failed: ${res.status}`);
+      }
+      cancelAdjust();
+      await loadAll();
+    } catch (e: any) {
+      setError(e.message ?? "Failed to adjust stock");
+    }
+  }
+
+  return (
+    <div>
+      <h2 style={{ marginBottom: 12 }}>Ingredients</h2>
+
+      <form onSubmit={createIngredient} style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            placeholder="SKU"
+            value={form.sku}
+            onChange={(e) => setForm({ ...form, sku: e.target.value })}
+            required
+          />
+          <input
+            placeholder="Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <select
+            value={form.category}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                category: e.target.value as Ingredient["category"],
+              })
+            }
+          >
+            <option value="food">Food</option>
+            <option value="alcohol">Alcohol</option>
+          </select>
+          <select
+            value={form.baseUnit}
+            onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
+            required
+          >
+            {units.map((u) => (
+              <option key={u._id} value={u._id}>
+                {unitIdToLabel.get(u._id)}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            placeholder="Par level"
+            min={0}
+            value={form.parLevel}
+            onChange={(e) =>
+              setForm({ ...form, parLevel: Number(e.target.value) })
+            }
+          />
+          <input
+            type="number"
+            placeholder="Current qty"
+            min={0}
+            value={form.currentQty}
+            onChange={(e) =>
+              setForm({ ...form, currentQty: Number(e.target.value) })
+            }
+          />
+          <button type="submit" disabled={units.length === 0}>
+            Create
+          </button>
+        </div>
+      </form>
+
+      {error && (
+        <div style={{ color: "#ff7b9c", marginBottom: 12 }}>{error}</div>
+      )}
+
+      {loading ? (
+        <div>Loading…</div>
+      ) : ingredients.length === 0 ? (
+        <div>No ingredients yet.</div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Base Unit</th>
+              <th>Par Level</th>
+              <th>Current</th>
+              <th>To Order</th>
+              <th style={{ width: 320 }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ingredients.map((ing) => {
+              const isEditing = editingId === ing._id;
+              const isAdjusting = adjustId === ing._id;
+              return (
+                <tr key={ing._id || ing.sku}>
+                  <td>{ing.sku}</td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        value={editForm.name}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, name: e.target.value })
+                        }
+                      />
+                    ) : (
+                      ing.name
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <select
+                        value={editForm.category}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            category: e.target.value as Ingredient["category"],
+                          })
+                        }
+                      >
+                        <option value="food">Food</option>
+                        <option value="alcohol">Alcohol</option>
+                      </select>
+                    ) : (
+                      ing.category
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <select
+                        value={editForm.baseUnit}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, baseUnit: e.target.value })
+                        }
+                      >
+                        {units.map((u) => (
+                          <option key={u._id} value={u._id}>
+                            {unitIdToLabel.get(u._id)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      unitIdToLabel.get(ing.baseUnit) || ing.baseUnit
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        min={0}
+                        value={editForm.parLevel}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            parLevel: Number(e.target.value),
+                          })
+                        }
+                      />
+                    ) : (
+                      ing.parLevel
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        min={0}
+                        value={editForm.currentQty}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            currentQty: Number(e.target.value),
+                          })
+                        }
+                      />
+                    ) : (
+                      ing.currentQty ?? 0
+                    )}
+                  </td>
+                  <td>{toOrder(ing.parLevel ?? 0, ing.currentQty ?? 0)}</td>
+                  <td>
+                    {isEditing ? (
+                      <div
+                        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(ing._id!)}
+                        >
+                          Save
+                        </button>
+                        <button type="button" onClick={cancelEdit}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : isAdjusting ? (
+                      <div
+                        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                      >
+                        <input
+                          type="number"
+                          placeholder="Δ qty"
+                          value={adjustDelta}
+                          onChange={(e) =>
+                            setAdjustDelta(Number(e.target.value))
+                          }
+                          style={{ width: 100 }}
+                        />
+                        <input
+                          placeholder="Reason (optional)"
+                          value={adjustReason}
+                          onChange={(e) => setAdjustReason(e.target.value)}
+                          style={{ width: 200 }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveAdjust(ing._id!)}
+                        >
+                          Apply
+                        </button>
+                        <button type="button" onClick={cancelAdjust}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                      >
+                        <button type="button" onClick={() => startEdit(ing)}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startAdjust(ing._id!)}
+                        >
+                          Adjust
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

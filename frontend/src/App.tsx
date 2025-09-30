@@ -1,26 +1,98 @@
-import { useEffect, useState } from "react";
+import {
+  Link,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+  Navigate,
+} from "react-router-dom";
+import Home from "./pages/Home";
+import UnitsPage from "./pages/Units";
+import HealthPage from "./pages/Health";
+import IngredientsPage from "./pages/Ingredients";
+import LoginPage from "./pages/Login";
+import SignupPage from "./pages/Signup";
+import { useAuth } from "./context/AuthContext";
 
-type Status = "loading" | "up" | "down";
+function Protected({ children }: { children: JSX.Element }) {
+  const { token, hydrated } = useAuth();
+  if (!hydrated)
+    return (
+      <div className="card">
+        <h2>Loading…</h2>
+      </div>
+    );
+  if (!token) return <Navigate to="/login" replace />;
+  return children;
+}
 
 export default function App() {
-  const [status, setStatus] = useState<Status>("loading");
-  const [time, setTime] = useState<string>("");
+  const { token, restaurant, logout } = useAuth();
 
-  useEffect(() => {
-    const url = `${import.meta.env.VITE_API_URL}/api/health`;
+  return (
+    <Router>
+      <div>
+        <nav className="navbar">
+          <Link to="/">Home</Link>
+          <Link to="/health">Health</Link>
+          <Link to="/units">Units</Link>
+          <Link to="/ingredients">Ingredients</Link>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {token ? (
+              <>
+                <span style={{ opacity: 0.8 }}>{restaurant?.name}</span>
+                <button type="button" onClick={logout}>
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login">Login</Link>
+                <Link to="/signup">Signup</Link>
+              </>
+            )}
+          </div>
+        </nav>
 
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        setStatus("up");
-        setTime(data.time);
-      })
-      .catch(() => setStatus("down"));
-  }, []);
+        <div className="card">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <Protected>
+                  <Home />
+                </Protected>
+              }
+            />
+            <Route
+              path="/health"
+              element={
+                <Protected>
+                  <HealthPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/units"
+              element={
+                <Protected>
+                  <UnitsPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/ingredients"
+              element={
+                <Protected>
+                  <IngredientsPage />
+                </Protected>
+              }
+            />
 
-  if (status === "loading") return <h1>Checking API…</h1>;
-  if (status === "down")
-    return <h1 style={{ color: "red" }}>API unreachable</h1>;
-
-  return <h1>API healthy @ {time}</h1>;
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+          </Routes>
+        </div>
+      </div>
+    </Router>
+  );
 }

@@ -15,11 +15,19 @@ mongoose.set("bufferCommands", false);
 
 //routes
 import ingredientRoutes from "./routes/ingredients";
+import unitRoutes from "./routes/units";
+import authRoutes from "./routes/auth";
+import requireAuth from "./middleware/requireAuth";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/auth", authRoutes);
+
+app.use(requireAuth);
 app.use("/api/ingredients", ingredientRoutes);
+app.use("/api/units", unitRoutes);
 
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })
@@ -39,8 +47,21 @@ app.use(errorHandler);
 
 async function start() {
   try {
-    console.log("⏳ Connecting to Mongo…");
-    await mongoose.connect(process.env.MONGO_URI!, {
+    const uri = process.env.MONGO_URI;
+    const display = (() => {
+      try {
+        if (!uri) return "(missing MONGO_URI)";
+        const u = new URL(uri);
+        const dbName =
+          u.pathname && u.pathname.length > 1 ? u.pathname.slice(1) : "(none)";
+        return `${u.protocol}//${u.host}/${dbName}`;
+      } catch {
+        return "(invalid URI)";
+      }
+    })();
+    console.log(`⏳ Connecting to Mongo at ${display} …`);
+
+    await mongoose.connect(uri!, {
       serverSelectionTimeoutMS: 5000,
     });
     console.log("✅ Mongo connected");

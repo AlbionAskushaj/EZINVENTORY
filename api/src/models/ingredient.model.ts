@@ -1,14 +1,20 @@
-import { Schema, model, InferSchemaType } from "mongoose";
+import { Schema, model, InferSchemaType, Types } from "mongoose";
 
 const IngredientSchema = new Schema(
   {
     sku: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, trim: true },
     category: { type: String, enum: ["food", "alcohol"], required: true },
-    // Keep it simple for now: a base unit code. We'll switch to Unit._id later if you want.
-    baseUnit: { type: String, enum: ["g", "ml", "ct"], required: true },
+    // Reference Unit by ObjectId per schema
+    baseUnit: { type: Schema.Types.ObjectId, ref: "Unit", required: true },
     parLevel: { type: Number, default: 0, min: 0 },
+    currentQty: { type: Number, default: 0, min: 0 },
     active: { type: Boolean, default: true },
+    restaurant: {
+      type: Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: true,
+    },
   },
   { timestamps: true }
 );
