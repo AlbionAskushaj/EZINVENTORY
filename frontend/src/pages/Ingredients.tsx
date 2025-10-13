@@ -213,63 +213,90 @@ export default function IngredientsPage() {
       <h2 style={{ marginBottom: 12 }}>Ingredients</h2>
 
       <form onSubmit={createIngredient} style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            placeholder="SKU"
-            value={form.sku}
-            onChange={(e) => setForm({ ...form, sku: e.target.value })}
-            required
-          />
-          <input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <select
-            value={form.category}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                category: e.target.value as Ingredient["category"],
-              })
-            }
-          >
-            <option value="food">Food</option>
-            <option value="alcohol">Alcohol</option>
-          </select>
-          <select
-            value={form.baseUnit}
-            onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
-            required
-          >
-            {units.map((u) => (
-              <option key={u._id} value={u._id}>
-                {unitIdToLabel.get(u._id)}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            placeholder="Par level"
-            min={0}
-            value={form.parLevel}
-            onChange={(e) =>
-              setForm({ ...form, parLevel: Number(e.target.value) })
-            }
-          />
-          <input
-            type="number"
-            placeholder="Current qty"
-            min={0}
-            value={form.currentQty}
-            onChange={(e) =>
-              setForm({ ...form, currentQty: Number(e.target.value) })
-            }
-          />
-          <button type="submit" disabled={units.length === 0}>
-            Create
-          </button>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>SKU</label>
+            <input
+              placeholder="SKU"
+              value={form.sku}
+              onChange={(e) => setForm({ ...form, sku: e.target.value })}
+              required
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Name</label>
+            <input
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Category</label>
+            <select
+              value={form.category}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  category: e.target.value as Ingredient["category"],
+                })
+              }
+            >
+              <option value="food">Food</option>
+              <option value="alcohol">Alcohol</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Base Unit</label>
+            <select
+              value={form.baseUnit}
+              onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
+              required
+            >
+              {units.map((u) => (
+                <option key={u._id} value={u._id}>
+                  {unitIdToLabel.get(u._id)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Par Level</label>
+            <input
+              type="number"
+              placeholder="Par level"
+              min={0}
+              value={form.parLevel}
+              onChange={(e) =>
+                setForm({ ...form, parLevel: Number(e.target.value) })
+              }
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Current Quantity</label>
+            <input
+              type="number"
+              placeholder="Current qty"
+              min={0}
+              value={form.currentQty}
+              onChange={(e) =>
+                setForm({ ...form, currentQty: Number(e.target.value) })
+              }
+            />
+          </div>
+          <div style={{ alignSelf: "end" }}>
+            <button type="submit" disabled={units.length === 0}>
+              Create
+            </button>
+          </div>
         </div>
       </form>
 

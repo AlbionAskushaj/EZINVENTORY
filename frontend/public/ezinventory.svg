@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c5cff"/>
+      <stop offset="100%" stop-color="#00e5ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="28" fill="#0b0f14"/>
+  <g transform="translate(20,20)">
+    <rect x="0" y="40" width="160" height="100" rx="14" fill="url(#g)" opacity="0.25"/>
+    <path d="M10 60h80v10H10zM10 80h120v10H10zM10 100h60v10H10z" fill="#e6f1ff" opacity="0.9"/>
+    <text x="10" y="32" fill="#e6f1ff" font-family="ui-sans-serif,system-ui" font-size="20" font-weight="700">EZInventory</text>
+  </g>
+</svg>

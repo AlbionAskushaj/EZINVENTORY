@@ -18,6 +18,7 @@ import ingredientRoutes from "./routes/ingredients";
 import unitRoutes from "./routes/units";
 import authRoutes from "./routes/auth";
 import requireAuth from "./middleware/requireAuth";
+import menuRoutes from "./routes/menu";
 
 const app = express();
 app.use(cors());
@@ -28,6 +29,7 @@ app.use("/api/auth", authRoutes);
 app.use(requireAuth);
 app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/units", unitRoutes);
+app.use("/api/menu", menuRoutes);
 
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })

@@ -112,33 +112,51 @@ export default function UnitsPage() {
       <h2 style={{ marginBottom: 12 }}>Units</h2>
 
       <form onSubmit={createUnit} style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            placeholder="Code (e.g., ML)"
-            value={form.code}
-            onChange={(e) =>
-              setForm({ ...form, code: e.target.value.toUpperCase() })
-            }
-            required
-          />
-          <input
-            placeholder="Name (e.g., Milliliters)"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            type="number"
-            placeholder="Precision"
-            value={form.precision}
-            min={0}
-            max={6}
-            onChange={(e) =>
-              setForm({ ...form, precision: Number(e.target.value) })
-            }
-            required
-          />
-          <button type="submit">Create</button>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Code</label>
+            <input
+              placeholder="Code (e.g., ML)"
+              value={form.code}
+              onChange={(e) =>
+                setForm({ ...form, code: e.target.value.toUpperCase() })
+              }
+              required
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Name</label>
+            <input
+              placeholder="Name (e.g., Milliliters)"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Precision</label>
+            <input
+              type="number"
+              placeholder="Precision"
+              value={form.precision}
+              min={0}
+              max={6}
+              onChange={(e) =>
+                setForm({ ...form, precision: Number(e.target.value) })
+              }
+              required
+            />
+          </div>
+          <div style={{ alignSelf: "end" }}>
+            <button type="submit">Create</button>
+          </div>
         </div>
       </form>
 
