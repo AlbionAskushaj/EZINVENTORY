@@ -4,7 +4,11 @@ const IngredientSchema = new Schema(
   {
     sku: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, trim: true },
-    category: { type: String, enum: ["food", "alcohol"], required: true },
+    category: {
+      type: String,
+      enum: ["dry", "produce", "meat", "dairy", "bar"],
+      required: true,
+    },
     // Reference Unit by ObjectId per schema
     baseUnit: { type: Schema.Types.ObjectId, ref: "Unit", required: true },
     parLevel: { type: Number, default: 0, min: 0 },

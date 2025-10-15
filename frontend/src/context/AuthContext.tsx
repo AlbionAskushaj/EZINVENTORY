@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = sessionStorage.getItem(STORAGE_KEY);
       console.groupCollapsed("[Auth] init from storage");
       console.log("raw:", raw);
       if (raw) {
@@ -50,7 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, restaurant }));
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ token, restaurant })
+      );
       console.log("[Auth] state persisted", {
         tokenLen: token ? String(token).length : 0,
         restaurant,
@@ -153,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setRestaurant(null);
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
     } catch {}
   }
 

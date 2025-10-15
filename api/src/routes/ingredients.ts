@@ -9,7 +9,7 @@ const r: Router = createRouter();
 const ingredientCreateSchema = z.object({
   sku: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  category: z.enum(["food", "alcohol"]),
+  category: z.enum(["dry", "produce", "meat", "dairy", "bar"]),
   baseUnit: z.string().trim().min(1),
   parLevel: z.number().min(0).default(0),
   currentQty: z.number().min(0).default(0),
@@ -88,23 +88,29 @@ r.patch("/:id", validate(ingredientUpdateSchema), async (req: any, res) => {
 r.post("/:id/adjust", validate(adjustSchema), async (req: any, res) => {
   const { delta, reason } = req.body as { delta: number; reason?: string };
   const id = req.params.id;
-  const doc = await Ingredient.findOne({
-    _id: id,
-    restaurant: req.user!.restaurantId,
-  });
-  if (!doc) return res.status(404).json({ error: "Not found" });
 
-  const nextQty = (doc.currentQty || 0) + delta;
-  if (nextQty < 0)
+  // Use an atomic update so concurrent adjustments don’t overwrite each other.
+  // If the delta is negative, require currentQty ≥ -delta; otherwise the update is skipped.
+  const baseFilter: any = { _id: id, restaurant: req.user!.restaurantId };
+  const qtyFilter = delta < 0 ? { currentQty: { $gte: -delta } } : {};
+  const result = await Ingredient.updateOne(
+    { ...baseFilter, ...qtyFilter },
+    { $inc: { currentQty: delta } }
+  );
+  if (result.modifiedCount === 0) {
+    // Either the document wasn’t found or the update would push currentQty below zero
+    const exists = await Ingredient.exists(baseFilter);
+    if (!exists) return res.status(404).json({ error: "Not found" });
     return res
       .status(400)
       .json({ error: "Resulting stock cannot be negative" });
+  }
 
-  doc.currentQty = nextQty;
-  await doc.save();
+  // Log the adjustment after the stock has been updated
   await Movement.create({ ingredient: id, type: "adjustment", delta, reason });
-
-  res.json({ ok: true, currentQty: doc.currentQty });
+  // Fetch the updated quantity for the client
+  const updated = await Ingredient.findOne(baseFilter);
+  res.json({ ok: true, currentQty: updated?.currentQty ?? 0 });
 });
 
 // Archive (soft delete -> active=false)

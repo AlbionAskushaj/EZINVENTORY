@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export default function SignupPage() {
-  const { signup } = useAuth();
+  const { signup, logout } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [restaurantName, setRestaurantName] = useState("");
   const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    logout(); // clear existing token
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
