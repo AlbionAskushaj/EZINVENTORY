@@ -1,6 +1,7 @@
 import { Router as createRouter } from "express";
 import type { Router } from "express";
 import Ingredient from "../models/ingredient.model";
+import Unit from "../models/unit.model";
 import { z } from "zod";
 import Movement from "../models/movement.model";
 
@@ -9,7 +10,15 @@ const r: Router = createRouter();
 const ingredientCreateSchema = z.object({
   sku: z.string().trim().min(1),
   name: z.string().trim().min(1),
-  category: z.enum(["dry", "produce", "meat", "dairy", "bar"]),
+  category: z.enum([
+    "dry",
+    "produce",
+    "meat",
+    "dairy",
+    "bar",
+    "seafood",
+    "grocery",
+  ]),
   baseUnit: z.string().trim().min(1),
   parLevel: z.number().min(0).default(0),
   currentQty: z.number().min(0).default(0),
@@ -49,6 +58,13 @@ r.get("/", async (req: any, res, next) => {
 
 r.post("/", validate(ingredientCreateSchema), async (req: any, res) => {
   try {
+    // Ensure the base unit belongs to this restaurant
+    const unit = await Unit.findOne({
+      _id: req.body.baseUnit,
+      restaurant: req.user!.restaurantId,
+    });
+    if (!unit) return res.status(400).json({ error: "Base unit not found" });
+
     const item = await Ingredient.create({
       ...req.body,
       restaurant: req.user!.restaurantId,
@@ -70,6 +86,16 @@ r.get("/:id", async (req: any, res) => {
 
 r.patch("/:id", validate(ingredientUpdateSchema), async (req: any, res) => {
   try {
+    // If baseUnit is being changed, enforce ownership
+    if (req.body.baseUnit) {
+      const unit = await Unit.findOne({
+        _id: req.body.baseUnit,
+        restaurant: req.user!.restaurantId,
+      });
+      if (!unit)
+        return res.status(400).json({ error: "Base unit not found" });
+    }
+
     const item = await Ingredient.findOneAndUpdate(
       { _id: req.params.id, restaurant: req.user!.restaurantId },
       req.body,
@@ -107,7 +133,13 @@ r.post("/:id/adjust", validate(adjustSchema), async (req: any, res) => {
   }
 
   // Log the adjustment after the stock has been updated
-  await Movement.create({ ingredient: id, type: "adjustment", delta, reason });
+  await Movement.create({
+    ingredient: id,
+    restaurant: req.user!.restaurantId,
+    type: "adjustment",
+    delta,
+    reason,
+  });
   // Fetch the updated quantity for the client
   const updated = await Ingredient.findOne(baseFilter);
   res.json({ ok: true, currentQty: updated?.currentQty ?? 0 });

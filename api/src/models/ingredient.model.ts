@@ -2,11 +2,19 @@ import { Schema, model, InferSchemaType, Types } from "mongoose";
 
 const IngredientSchema = new Schema(
   {
-    sku: { type: String, required: true, unique: true, trim: true },
+    sku: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: ["dry", "produce", "meat", "dairy", "bar"],
+      enum: [
+        "dry",
+        "produce",
+        "meat",
+        "dairy",
+        "bar",
+        "seafood",
+        "grocery",
+      ], // categories of ingredients
       required: true,
     },
     // Reference Unit by ObjectId per schema
@@ -22,6 +30,9 @@ const IngredientSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// Enforce per-restaurant uniqueness on SKU
+IngredientSchema.index({ restaurant: 1, sku: 1 }, { unique: true });
 
 export type IngredientDoc = InferSchemaType<typeof IngredientSchema>;
 export default model("Ingredient", IngredientSchema);

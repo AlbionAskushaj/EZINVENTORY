@@ -19,6 +19,9 @@ import unitRoutes from "./routes/units";
 import authRoutes from "./routes/auth";
 import requireAuth from "./middleware/requireAuth";
 import menuRoutes from "./routes/menu";
+import invoiceRoutes from "./routes/invoices";
+import salesRoutes from "./routes/sales";
+import menuBreakdownRoutes from "./routes/menuBreakdown";
 
 const app = express();
 app.use(cors());
@@ -30,6 +33,9 @@ app.use(requireAuth);
 app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/units", unitRoutes);
 app.use("/api/menu", menuRoutes);
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/sales", salesRoutes);
+app.use("/api/menu-breakdown", menuBreakdownRoutes);
 
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, time: new Date().toISOString() })
@@ -48,29 +54,44 @@ const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
 app.use(errorHandler);
 
 async function start() {
+  const uri = process.env.MONGO_URI;
+  const display = (() => {
+    try {
+      if (!uri) return "(missing MONGO_URI)";
+      const u = new URL(uri);
+      const dbName =
+        u.pathname && u.pathname.length > 1 ? u.pathname.slice(1) : "(none)";
+      return `${u.protocol}//${u.host}/${dbName}`;
+    } catch {
+      return "(invalid URI)";
+    }
+  })();
+
+  if (!uri) {
+    console.error("❌ Missing MONGO_URI env var. Add it to api/.env.");
+    process.exit(1);
+  }
+
+  // Log connection lifecycle to make debugging hangs easier
+  mongoose.connection.on("connecting", () =>
+    console.log(`⏳ Connecting to Mongo at ${display} …`)
+  );
+  mongoose.connection.on("connected", () =>
+    console.log("✅ Mongo connected")
+  );
+  mongoose.connection.on("error", (err) =>
+    console.error("❌ Mongo connection error:", err)
+  );
+
   try {
-    const uri = process.env.MONGO_URI;
-    const display = (() => {
-      try {
-        if (!uri) return "(missing MONGO_URI)";
-        const u = new URL(uri);
-        const dbName =
-          u.pathname && u.pathname.length > 1 ? u.pathname.slice(1) : "(none)";
-        return `${u.protocol}//${u.host}/${dbName}`;
-      } catch {
-        return "(invalid URI)";
-      }
-    })();
-    console.log(`⏳ Connecting to Mongo at ${display} …`);
-
-    await mongoose.connect(uri!, {
-      serverSelectionTimeoutMS: 5000,
+    await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 5_000,
+      connectTimeoutMS: 5_000,
+      socketTimeoutMS: 10_000,
     });
-    console.log("✅ Mongo connected");
-
     app.listen(PORT, () => console.log(`🚀 API running on :${PORT}`));
   } catch (err) {
-    console.error("❌ Mongo connection error:", err);
+    console.error("❌ Failed to connect to Mongo:", err);
     process.exit(1);
   }
 }

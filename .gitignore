@@ -21,3 +21,6 @@ api/dist/
 logs/
 npm-debug.log*
 pnpm-debug.log*
+
+# ───── data exports ────────────────────────────────────────────────
+*.csv

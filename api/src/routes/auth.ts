@@ -1,11 +1,12 @@
-import { Router } from "express";
+import { Router as createRouter } from "express";
+import type { Router } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model";
 import Restaurant from "../models/restaurant.model";
 
-const r = Router();
+const r: Router = createRouter();
 
 const signupSchema = z.object({
   email: z.string().email(),

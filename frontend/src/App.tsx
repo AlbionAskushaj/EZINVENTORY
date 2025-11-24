@@ -12,6 +12,9 @@ import IngredientsPage from "./pages/Ingredients";
 import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
 import MenuPage from "./pages/Menu";
+import InvoiceImportPage from "./pages/InvoiceImport";
+import SalesPage from "./pages/Sales";
+import MenuBreakdownPage from "./pages/MenuBreakdown";
 import { useAuth } from "./context/AuthContext";
 
 function Protected({ children }: { children: JSX.Element }) {
@@ -35,8 +38,11 @@ export default function App() {
         <nav className="navbar">
           <Link to="/">Home</Link>
           <Link to="/health">Health</Link>
+          <Link to="/sales">Sales</Link>
+          <Link to="/menu-breakdown">Menu Breakdown</Link>
           <Link to="/units">Units</Link>
           <Link to="/ingredients">Ingredients</Link>
+          <Link to="/invoices">Invoice Import</Link>
           <Link to="/menu">Menu</Link>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {token ? (
@@ -62,6 +68,22 @@ export default function App() {
               element={
                 <Protected>
                   <MenuPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/menu-breakdown"
+              element={
+                <Protected>
+                  <MenuBreakdownPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/sales"
+              element={
+                <Protected>
+                  <SalesPage />
                 </Protected>
               }
             />
@@ -94,6 +116,14 @@ export default function App() {
               element={
                 <Protected>
                   <IngredientsPage />
+                </Protected>
+              }
+            />
+            <Route
+              path="/invoices"
+              element={
+                <Protected>
+                  <InvoiceImportPage />
                 </Protected>
               }
             />

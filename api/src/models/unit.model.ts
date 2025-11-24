@@ -13,7 +13,6 @@ const UnitSchema = new Schema(
       required: true,
       trim: true,
       uppercase: true,
-      unique: true,
     },
     name: { type: String, required: true, trim: true },
     precision: { type: Number, required: true, min: 0, max: 6, default: 0 },
@@ -25,6 +24,9 @@ const UnitSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// Enforce uniqueness per restaurant (not globally across tenants)
+UnitSchema.index({ restaurant: 1, code: 1 }, { unique: true });
 
 export type UnitDoc = InferSchemaType<typeof UnitSchema>;
 export default model("Unit", UnitSchema);

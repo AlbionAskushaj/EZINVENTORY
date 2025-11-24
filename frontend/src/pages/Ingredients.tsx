@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
+const INGREDIENT_CATEGORIES = [
+  "dry",
+  "produce",
+  "meat",
+  "dairy",
+  "bar",
+  "seafood",
+  "grocery",
+] as const;
+type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number];
+const categoryLabel = (value: IngredientCategory) =>
+  value.charAt(0).toUpperCase() + value.slice(1);
+
 type Unit = {
   _id: string;
   code: string;
@@ -12,7 +25,7 @@ type Ingredient = {
   _id?: string;
   sku: string;
   name: string;
-  category: "food" | "alcohol";
+  category: IngredientCategory;
   baseUnit: string; // unit id
   parLevel: number;
   currentQty: number;
@@ -28,7 +41,7 @@ export default function IngredientsPage() {
   const [form, setForm] = useState<Ingredient>({
     sku: "",
     name: "",
-    category: "food",
+    category: INGREDIENT_CATEGORIES[0],
     baseUnit: "",
     parLevel: 0,
     currentQty: 0,
@@ -38,7 +51,7 @@ export default function IngredientsPage() {
   const [editForm, setEditForm] = useState<Ingredient>({
     sku: "",
     name: "",
-    category: "food",
+    category: INGREDIENT_CATEGORIES[0],
     baseUnit: "",
     parLevel: 0,
     currentQty: 0,
@@ -111,7 +124,7 @@ export default function IngredientsPage() {
       setForm({
         sku: "",
         name: "",
-        category: "food",
+        category: INGREDIENT_CATEGORIES[0],
         baseUnit: units[0]?._id || "",
         parLevel: 0,
         currentQty: 0,
@@ -250,8 +263,11 @@ export default function IngredientsPage() {
                 })
               }
             >
-              <option value="food">Food</option>
-              <option value="alcohol">Alcohol</option>
+              {INGREDIENT_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {categoryLabel(cat)}
+                </option>
+              ))}
             </select>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -352,8 +368,11 @@ export default function IngredientsPage() {
                           })
                         }
                       >
-                        <option value="food">Food</option>
-                        <option value="alcohol">Alcohol</option>
+                        {INGREDIENT_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {categoryLabel(cat)}
+                          </option>
+                        ))}
                       </select>
                     ) : (
                       ing.category

@@ -83,6 +83,18 @@ export default function MenuPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  useEffect(() => {
+    try {
+      const prefill = sessionStorage.getItem("ezinv.menu.prefill");
+      if (prefill) {
+        setForm((f) => ({ ...f, name: prefill }));
+        sessionStorage.removeItem("ezinv.menu.prefill");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   function addIngredientRow() {
     if (ingredients.length === 0) return;
     setForm((f) => ({

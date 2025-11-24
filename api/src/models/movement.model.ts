@@ -7,6 +7,11 @@ const MovementSchema = new Schema(
       ref: "Ingredient",
       required: true,
     },
+    restaurant: {
+      type: Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: true,
+    },
     type: {
       type: String,
       enum: ["adjustment", "purchase", "usage"],
@@ -17,6 +22,8 @@ const MovementSchema = new Schema(
   },
   { timestamps: true }
 );
+
+MovementSchema.index({ restaurant: 1, ingredient: 1, createdAt: -1 });
 
 export type MovementDoc = InferSchemaType<typeof MovementSchema>;
 export default model("Movement", MovementSchema);
