@@ -17,6 +17,8 @@ const menuCreateSchema = z.object({
   name: z.string().trim().min(1),
   price: z.number().min(0),
   ingredients: z.array(ingredientRefSchema).min(1),
+  kind: z.enum(["food", "beverage"]).default("food").optional(),
+  category: z.string().trim().optional(),
 });
 
 const menuUpdateSchema = menuCreateSchema.partial();
@@ -58,9 +60,14 @@ r.post("/", validate(menuCreateSchema), async (req: any, res) => {
         .status(400)
         .json({ error: "One or more ingredients not found" });
     }
-    const doc = await MenuItem.create({
+    const payload = {
       ...req.body,
+      kind: req.body.kind || "food",
+      category: req.body.category || "Uncategorized",
       restaurant: req.user!.restaurantId,
+    };
+    const doc = await MenuItem.create({
+      ...payload,
     });
     const populated = await doc.populate("ingredients.ingredient");
     res.status(201).json(populated);
@@ -95,9 +102,14 @@ r.patch("/:id", validate(menuUpdateSchema), async (req: any, res) => {
           .json({ error: "One or more ingredients not found" });
       }
     }
+    const payload = {
+      ...req.body,
+    };
+    if (payload.kind === undefined) payload.kind = "food";
+    if (payload.category === undefined) payload.category = "Uncategorized";
     const doc = await MenuItem.findOneAndUpdate(
       { _id: req.params.id, restaurant: req.user!.restaurantId },
-      req.body,
+      payload,
       { new: true, runValidators: true }
     ).populate("ingredients.ingredient");
     if (!doc) return res.status(404).json({ error: "Not found" });

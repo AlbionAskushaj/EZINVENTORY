@@ -15,6 +15,8 @@ type MenuItem = {
   _id?: string;
   name: string;
   price: number;
+  kind?: "food" | "beverage";
+  category?: string;
   ingredients: MenuItemIngredient[];
 };
 
@@ -35,12 +37,16 @@ export default function MenuPage() {
   const [form, setForm] = useState<MenuItem>({
     name: "",
     price: 0,
+    kind: "food",
+    category: "Uncategorized",
     ingredients: [],
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MenuItem>({
     name: "",
     price: 0,
+    kind: "food",
+    category: "Uncategorized",
     ingredients: [],
   });
 
@@ -140,6 +146,8 @@ export default function MenuPage() {
         body: JSON.stringify({
           name: form.name.trim(),
           price: Number(form.price),
+          kind: form.kind || "food",
+          category: form.category?.trim() || "Uncategorized",
           ingredients: form.ingredients.map((row) => ({
             ingredient: row.ingredient,
             quantity: Number(row.quantity),
@@ -154,6 +162,8 @@ export default function MenuPage() {
       setForm({
         name: "",
         price: 0,
+        kind: "food",
+        category: "Uncategorized",
         ingredients:
           ingredients.length > 0
             ? [{ ingredient: ingredients[0]._id, quantity: 0 }]
@@ -170,6 +180,8 @@ export default function MenuPage() {
     setEditForm({
       name: item.name,
       price: item.price,
+      kind: item.kind || "food",
+      category: item.category || "Uncategorized",
       ingredients: item.ingredients.map((ing) => ({
         ingredient: ing.ingredient,
         quantity: ing.quantity,
@@ -211,6 +223,8 @@ export default function MenuPage() {
         body: JSON.stringify({
           name: editForm.name,
           price: Number(editForm.price),
+          kind: editForm.kind || "food",
+          category: editForm.category?.trim() || "Uncategorized",
           ingredients: editForm.ingredients.map((row) => ({
             ingredient: row.ingredient,
             quantity: Number(row.quantity),
@@ -257,7 +271,7 @@ export default function MenuPage() {
         <div
           style={{
             display: "flex",
-            gap: 8,
+            gap: 12,
             flexWrap: "wrap",
             alignItems: "flex-start",
           }}
@@ -295,6 +309,42 @@ export default function MenuPage() {
                 {formErrors.price}
               </span>
             )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label>Type</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <input
+                  type="radio"
+                  name="menu-kind"
+                  value="food"
+                  checked={form.kind === "food"}
+                  onChange={() => setForm({ ...form, kind: "food" })}
+                />
+                Food
+              </label>
+              <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                <input
+                  type="radio"
+                  name="menu-kind"
+                  value="beverage"
+                  checked={form.kind === "beverage"}
+                  onChange={() => setForm({ ...form, kind: "beverage" })}
+                />
+                Beverage
+              </label>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="menu-category">Category</label>
+            <input
+              id="menu-category"
+              placeholder="e.g., Red Wine, Starters"
+              value={form.category || ""}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, category: e.target.value }))
+              }
+            />
           </div>
         </div>
         <div style={{ marginTop: 12 }}>
@@ -393,6 +443,8 @@ export default function MenuPage() {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Type</th>
+              <th>Category</th>
               <th>Price</th>
               <th>Ingredients</th>
               <th style={{ width: 220 }}>Actions</th>
@@ -413,6 +465,41 @@ export default function MenuPage() {
                       />
                     ) : (
                       item.name
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <select
+                        value={editForm.kind || "food"}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            kind: e.target.value as "food" | "beverage",
+                          })
+                        }
+                      >
+                        <option value="food">Food</option>
+                        <option value="beverage">Beverage</option>
+                      </select>
+                    ) : (
+                      (item.kind || "food").replace(/^[a-z]/, (c) =>
+                        c.toUpperCase()
+                      )
+                    )}
+                  </td>
+                  <td>
+                    {isEditing ? (
+                      <input
+                        value={editForm.category || ""}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            category: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      item.category || "Uncategorized"
                     )}
                   </td>
                   <td>

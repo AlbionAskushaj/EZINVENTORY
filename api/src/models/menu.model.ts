@@ -4,6 +4,13 @@ const MenuItemSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     price: { type: Number, required: true, min: 0 },
+    kind: {
+      type: String,
+      enum: ["food", "beverage"],
+      default: "food",
+      index: true,
+    },
+    category: { type: String, default: "Uncategorized", trim: true },
     ingredients: [
       {
         ingredient: {
