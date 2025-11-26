@@ -21,6 +21,7 @@ const IngredientSchema = new Schema(
     baseUnit: { type: Schema.Types.ObjectId, ref: "Unit", required: true },
     parLevel: { type: Number, default: 0, min: 0 },
     currentQty: { type: Number, default: 0, min: 0 },
+    avgCost: { type: Number, default: 0, min: 0 },
     active: { type: Boolean, default: true },
     restaurant: {
       type: Schema.Types.ObjectId,

@@ -11,6 +11,7 @@ const r: Router = createRouter();
 const ingredientRefSchema = z.object({
   ingredient: z.string().trim().min(1), // ObjectId as string
   quantity: z.number().min(0),
+  unitCost: z.number().min(0).optional(),
 });
 
 const menuCreateSchema = z.object({
@@ -19,6 +20,7 @@ const menuCreateSchema = z.object({
   ingredients: z.array(ingredientRefSchema).min(1),
   kind: z.enum(["food", "beverage"]).default("food").optional(),
   category: z.string().trim().optional(),
+  targetMargin: z.number().min(0).max(1).optional(),
 });
 
 const menuUpdateSchema = menuCreateSchema.partial();
@@ -37,9 +39,18 @@ function validate(schema: z.ZodSchema<any>) {
 // List all menu items for the authenticated restaurant
 r.get("/", async (req: any, res, next) => {
   try {
+    const activeFilter =
+      req.query.active === "all"
+        ? undefined
+        : req.query.active === "inactive"
+          ? false
+          : true;
     const items = await MenuItem.find({
       restaurant: req.user!.restaurantId,
-    }).populate("ingredients.ingredient");
+      ...(activeFilter === undefined ? {} : { active: activeFilter }),
+    })
+      .populate("ingredients.ingredient")
+      .sort({ deletedAt: -1, updatedAt: -1 });
     return res.json(items);
   } catch (e) {
     return next(e);
@@ -64,6 +75,7 @@ r.post("/", validate(menuCreateSchema), async (req: any, res) => {
       ...req.body,
       kind: req.body.kind || "food",
       category: req.body.category || "Uncategorized",
+      active: true,
       restaurant: req.user!.restaurantId,
     };
     const doc = await MenuItem.create({
@@ -75,6 +87,29 @@ r.post("/", validate(menuCreateSchema), async (req: any, res) => {
     res.status(400).json({ error: e.message });
   }
 });
+
+r.post(
+  "/bulk-category",
+  validate(
+    z.object({
+      ids: z.array(z.string().trim().min(1)).min(1),
+      category: z.string().trim().min(1),
+      kind: z.enum(["food", "beverage"]).optional(),
+    })
+  ),
+  async (req: any, res) => {
+    const { ids, category, kind } = req.body;
+    const result = await MenuItem.updateMany(
+      {
+        _id: { $in: ids },
+        restaurant: req.user!.restaurantId,
+        ...(kind ? { kind } : {}),
+      },
+      { category }
+    );
+    res.json({ updated: result.modifiedCount });
+  }
+);
 
 // Get a single menu item
 r.get("/:id", async (req: any, res) => {
@@ -107,6 +142,7 @@ r.patch("/:id", validate(menuUpdateSchema), async (req: any, res) => {
     };
     if (payload.kind === undefined) payload.kind = "food";
     if (payload.category === undefined) payload.category = "Uncategorized";
+    if (payload.active === undefined) payload.active = true;
     const doc = await MenuItem.findOneAndUpdate(
       { _id: req.params.id, restaurant: req.user!.restaurantId },
       payload,
@@ -121,12 +157,40 @@ r.patch("/:id", validate(menuUpdateSchema), async (req: any, res) => {
 
 // Delete a menu item (hard delete)
 r.delete("/:id", async (req: any, res) => {
-  const doc = await MenuItem.findOneAndDelete({
-    _id: req.params.id,
-    restaurant: req.user!.restaurantId,
-  });
+  const doc = await MenuItem.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      restaurant: req.user!.restaurantId,
+    },
+    { active: false, deletedAt: new Date() },
+    { new: true }
+  );
   if (!doc) return res.status(404).json({ error: "Not found" });
-  res.json({ ok: true });
+  res.json({ ok: true, softDeleted: true });
+});
+
+r.post("/:id/restore", async (req: any, res) => {
+  const doc = await MenuItem.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      restaurant: req.user!.restaurantId,
+    },
+    { active: true, deletedAt: null },
+    { new: true }
+  ).populate("ingredients.ingredient");
+  if (!doc) return res.status(404).json({ error: "Not found" });
+  res.json(doc);
+});
+
+r.delete("/trash/purge", async (req: any, res) => {
+  const days = Number(req.query.days || 30);
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const result = await MenuItem.deleteMany({
+    restaurant: req.user!.restaurantId,
+    active: false,
+    deletedAt: { $lte: cutoff },
+  });
+  res.json({ purged: result.deletedCount || 0, olderThanDays: days });
 });
 
 export default r;

@@ -38,6 +38,7 @@ export default function IngredientsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
+  const [notice, setNotice] = useState<string>("");
   const [form, setForm] = useState<Ingredient>({
     sku: "",
     name: "",
@@ -60,6 +61,13 @@ export default function IngredientsPage() {
   const [adjustId, setAdjustId] = useState<string | null>(null);
   const [adjustDelta, setAdjustDelta] = useState<number>(0);
   const [adjustReason, setAdjustReason] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [quickUnit, setQuickUnit] = useState<Unit>({
+    code: "",
+    name: "",
+    precision: 0,
+  });
 
   const ingredientsUrl = `${import.meta.env.VITE_API_URL}/api/ingredients`;
   const unitsUrl = `${import.meta.env.VITE_API_URL}/api/units`;
@@ -73,6 +81,7 @@ export default function IngredientsPage() {
   async function loadAll() {
     setLoading(true);
     setError("");
+    setNotice("");
     try {
       const [ingRes, unitRes] = await Promise.all([
         fetch(`${ingredientsUrl}?active=true`, {
@@ -101,6 +110,7 @@ export default function IngredientsPage() {
   async function createIngredient(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setNotice("");
     try {
       const res = await fetch(ingredientsUrl, {
         method: "POST",
@@ -129,6 +139,7 @@ export default function IngredientsPage() {
         parLevel: 0,
         currentQty: 0,
       });
+      setNotice("Ingredient created");
       await loadAll();
     } catch (e: any) {
       setError(e.message ?? "Failed to create ingredient");
@@ -173,6 +184,7 @@ export default function IngredientsPage() {
         throw new Error(body.error || `Request failed: ${res.status}`);
       }
       setEditingId(null);
+      setNotice("Ingredient updated");
       await loadAll();
     } catch (e: any) {
       setError(e.message ?? "Failed to update ingredient");
@@ -196,6 +208,15 @@ export default function IngredientsPage() {
     setAdjustReason("");
   }
 
+  const filteredIngredients = ingredients.filter((ing) => {
+    const matchesSearch =
+      ing.name.toLowerCase().includes(search.toLowerCase()) ||
+      ing.sku.toLowerCase().includes(search.toLowerCase());
+    const matchesCat =
+      filterCategory === "all" ? true : ing.category === filterCategory;
+    return matchesSearch && matchesCat;
+  });
+
   async function saveAdjust(id: string) {
     setError("");
     try {
@@ -215,15 +236,120 @@ export default function IngredientsPage() {
         throw new Error(body.error || `Request failed: ${res.status}`);
       }
       cancelAdjust();
+      setNotice("Stock adjusted");
       await loadAll();
     } catch (e: any) {
       setError(e.message ?? "Failed to adjust stock");
     }
   }
 
+  async function createQuickUnit() {
+    if (!quickUnit.code || !quickUnit.name) return;
+    setError("");
+    try {
+      const res = await fetch(unitsUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          code: quickUnit.code.toUpperCase(),
+          name: quickUnit.name,
+          precision: Number(quickUnit.precision || 0),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Failed (${res.status})`);
+      setQuickUnit({ code: "", name: "", precision: 0 });
+      setNotice("Unit created and ready to use");
+      await loadAll();
+    } catch (e: any) {
+      setError(e.message ?? "Failed to create unit");
+    }
+  }
+
   return (
     <div>
       <h2 style={{ marginBottom: 12 }}>Ingredients</h2>
+      {(notice || error) && (
+        <div style={{ marginBottom: 10, color: error ? "#ff7b9c" : "#4ade80" }}>
+          {error || notice}
+        </div>
+      )}
+
+      <div
+        className="card"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label>Search</label>
+          <input
+            placeholder="Search by SKU or name"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label>Filter by category</label>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+          >
+            <option value="all">All</option>
+            {INGREDIENT_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {categoryLabel(cat)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label>Quick unit (for this form)</label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input
+              placeholder="Code"
+              value={quickUnit.code}
+              onChange={(e) =>
+                setQuickUnit({ ...quickUnit, code: e.target.value.toUpperCase() })
+              }
+              style={{ width: 80 }}
+            />
+            <input
+              placeholder="Name"
+              value={quickUnit.name}
+              onChange={(e) =>
+                setQuickUnit({ ...quickUnit, name: e.target.value })
+              }
+              style={{ minWidth: 140 }}
+            />
+            <input
+              type="number"
+              min={0}
+              max={6}
+              value={quickUnit.precision}
+              onChange={(e) =>
+                setQuickUnit({
+                  ...quickUnit,
+                  precision: Number(e.target.value),
+                })
+              }
+              style={{ width: 80 }}
+            />
+            <button type="button" onClick={createQuickUnit}>
+              Save unit
+            </button>
+          </div>
+          <div style={{ color: "var(--muted)", fontSize: 12 }}>
+            Create a missing unit without leaving this page.
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={createIngredient} style={{ marginBottom: 16 }}>
         <div
@@ -322,7 +448,7 @@ export default function IngredientsPage() {
 
       {loading ? (
         <div>Loading…</div>
-      ) : ingredients.length === 0 ? (
+      ) : filteredIngredients.length === 0 ? (
         <div>No ingredients yet.</div>
       ) : (
         <table className="table">
@@ -339,7 +465,7 @@ export default function IngredientsPage() {
             </tr>
           </thead>
           <tbody>
-            {ingredients.map((ing) => {
+            {filteredIngredients.map((ing) => {
               const isEditing = editingId === ing._id;
               const isAdjusting = adjustId === ing._id;
               return (

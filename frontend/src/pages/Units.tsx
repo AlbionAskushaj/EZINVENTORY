@@ -13,6 +13,8 @@ export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
+  const [notice, setNotice] = useState<string>("");
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState<Unit>({ code: "", name: "", precision: 0 });
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -48,6 +50,7 @@ export default function UnitsPage() {
   async function createUnit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setNotice("");
     try {
       const res = await fetch(baseUrl, {
         method: "POST",
@@ -66,6 +69,7 @@ export default function UnitsPage() {
         throw new Error(body.error || `Request failed: ${res.status}`);
       }
       setForm({ code: "", name: "", precision: 0 });
+      setNotice("Unit created");
       await loadUnits();
     } catch (e: any) {
       setError(e.message ?? "Failed to create unit");
@@ -110,6 +114,11 @@ export default function UnitsPage() {
   return (
     <div>
       <h2 style={{ marginBottom: 12 }}>Units</h2>
+      {(notice || error) && (
+        <div style={{ marginBottom: 10, color: error ? "#ff7b9c" : "#4ade80" }}>
+          {error || notice}
+        </div>
+      )}
 
       <form onSubmit={createUnit} style={{ marginBottom: 16 }}>
         <div
@@ -157,12 +166,35 @@ export default function UnitsPage() {
           <div style={{ alignSelf: "end" }}>
             <button type="submit">Create</button>
           </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[
+              { code: "EA", name: "Each", precision: 0 },
+              { code: "KG", name: "Kilograms", precision: 3 },
+              { code: "LB", name: "Pounds", precision: 2 },
+              { code: "ML", name: "Milliliters", precision: 0 },
+              { code: "L", name: "Liters", precision: 3 },
+            ].map((preset) => (
+              <button
+                key={preset.code}
+                type="button"
+                onClick={() => setForm(preset)}
+                style={{ padding: "6px 10px" }}
+              >
+                Use {preset.code}
+              </button>
+            ))}
+          </div>
         </div>
       </form>
 
-      {error && (
-        <div style={{ color: "#ff7b9c", marginBottom: 12 }}>{error}</div>
-      )}
+      <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+        <input
+          placeholder="Search units"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: 240 }}
+        />
+      </div>
 
       {loading ? (
         <div>Loading…</div>
@@ -179,7 +211,13 @@ export default function UnitsPage() {
             </tr>
           </thead>
           <tbody>
-            {units.map((u) => {
+            {units
+              .filter(
+                (u) =>
+                  u.code.toLowerCase().includes(search.toLowerCase()) ||
+                  u.name.toLowerCase().includes(search.toLowerCase())
+              )
+              .map((u) => {
               const isEditing = editingId === u._id;
               return (
                 <tr key={u._id || u.code}>

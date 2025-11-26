@@ -22,6 +22,7 @@ import menuRoutes from "./routes/menu";
 import invoiceRoutes from "./routes/invoices";
 import salesRoutes from "./routes/sales";
 import menuBreakdownRoutes from "./routes/menuBreakdown";
+import menuCategoryRoutes from "./routes/menuCategories";
 
 const app = express();
 app.use(cors());
@@ -33,6 +34,7 @@ app.use(requireAuth);
 app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/units", unitRoutes);
 app.use("/api/menu", menuRoutes);
+app.use("/api/menu-categories", menuCategoryRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/menu-breakdown", menuBreakdownRoutes);

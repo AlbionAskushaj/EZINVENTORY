@@ -22,6 +22,7 @@ const ingredientCreateSchema = z.object({
   baseUnit: z.string().trim().min(1),
   parLevel: z.number().min(0).default(0),
   currentQty: z.number().min(0).default(0),
+  avgCost: z.number().min(0).default(0),
 });
 
 const ingredientUpdateSchema = ingredientCreateSchema.partial();
@@ -49,7 +50,9 @@ r.get("/", async (req: any, res, next) => {
     if (req.query.active === "true") filter.active = true;
     if (req.query.active === "false") filter.active = false;
 
-    const items = await Ingredient.find(filter).sort({ name: 1 });
+    const items = await Ingredient.find(filter)
+      .sort({ name: 1 })
+      .select("name sku category baseUnit parLevel currentQty avgCost active");
     return res.json(items);
   } catch (e) {
     return next(e);

@@ -19,8 +19,12 @@ const MenuItemSchema = new Schema(
           required: true,
         },
         quantity: { type: Number, required: true, min: 0 }, // quantity in base units
+        unitCost: { type: Number, min: 0 }, // optional override cost
       },
     ],
+    targetMargin: { type: Number, min: 0, max: 1, default: 0.3 },
+    active: { type: Boolean, default: true, index: true },
+    deletedAt: { type: Date },
     restaurant: {
       type: Schema.Types.ObjectId,
       ref: "Restaurant",
