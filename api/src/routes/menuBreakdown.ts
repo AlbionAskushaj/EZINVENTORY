@@ -20,7 +20,7 @@ type BreakdownItem = {
   discount?: number;
   netSales?: number;
   hasRecipe: boolean;
-  isBeverage: boolean;
+  isBeverage: boolean | null;
 };
 
 const r: Router = createRouter();
@@ -69,9 +69,16 @@ r.post(
         existing.map((m) => m.name.toLowerCase())
       );
 
+      const hintMap = await fetchBeverageHints(
+        names,
+        req.user!.restaurantId
+      );
+
       const withRecipeFlag = normalized.map((item) => ({
         ...item,
         hasRecipe: existingNames.has(item.name.toLowerCase()),
+        isBeverage:
+          hintMap.get(item.name.toLowerCase()) ?? null,
       }));
 
       const missingRecipeCount = withRecipeFlag.filter(
@@ -88,7 +95,7 @@ r.post(
 
       const dateHints = parseDateRangeFromName(req.file.originalname);
 
-      await MenuBreakdownUpload.create({
+      const saved = await MenuBreakdownUpload.create({
         restaurant: req.user!.restaurantId,
         uploadedBy: req.user!.userId,
         originalName: req.file.originalname,
@@ -99,10 +106,13 @@ r.post(
         missingRecipeCount,
         totalNetSales,
         totalQuantity,
+        items: withRecipeFlag,
         ...dateHints,
       });
 
       res.json({
+        uploadId: saved._id,
+        name: saved.originalName,
         summary: {
           totalItems: withRecipeFlag.length,
           missingRecipeCount,
@@ -118,6 +128,116 @@ r.post(
     }
   }
 );
+
+r.get("/uploads/:id", async (req: any, res, next) => {
+  try {
+    const upload = await MenuBreakdownUpload.findOne({
+      _id: req.params.id,
+      restaurant: req.user!.restaurantId,
+    });
+    if (!upload) {
+      res.status(404).json({ error: "Upload not found" });
+      return;
+    }
+
+    const items =
+      upload.items && upload.items.length
+        ? upload.items
+        : await rehydrateItemsFromStoredData(
+            upload.data,
+            req.user!.restaurantId
+          );
+
+    const summary = summarize(items, upload);
+
+    res.json({
+      upload: {
+        id: upload._id,
+        originalName: upload.originalName,
+        periodStart: upload.periodStart,
+        periodEnd: upload.periodEnd,
+        createdAt: upload.createdAt,
+      },
+      summary,
+      items,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+r.put("/uploads/:id", async (req: any, res, next) => {
+  try {
+    const upload = await MenuBreakdownUpload.findOne({
+      _id: req.params.id,
+      restaurant: req.user!.restaurantId,
+    });
+    if (!upload) {
+      res.status(404).json({ error: "Upload not found" });
+      return;
+    }
+    const items = Array.isArray(req.body.items) ? req.body.items : null;
+    const rename =
+      typeof req.body.name === "string" ? req.body.name.trim() : undefined;
+
+    if (rename && rename.length > 0) {
+      upload.originalName = rename;
+    }
+
+    if (items && items.length) {
+      const sanitized: BreakdownItem[] = items.map((item: any) => ({
+        name: String(item.name || "").trim(),
+        category: String(item.category || "Uncategorized").trim(),
+        modifier: item.modifier ? String(item.modifier) : undefined,
+        avgPrice:
+          item.avgPrice !== undefined ? Number(item.avgPrice) : undefined,
+        quantity: Number(item.quantity) || 0,
+        grossSales:
+          item.grossSales !== undefined ? Number(item.grossSales) : undefined,
+        discount:
+          item.discount !== undefined ? Number(item.discount) : undefined,
+        netSales:
+          item.netSales !== undefined ? Number(item.netSales) : undefined,
+        hasRecipe: Boolean(item.hasRecipe),
+        isBeverage:
+          item.isBeverage === null || item.isBeverage === undefined
+            ? null
+            : Boolean(item.isBeverage),
+      }));
+
+      const summary = summarize(sanitized, upload);
+      upload.items = sanitized;
+      upload.itemCount = summary.totalItems;
+      upload.missingRecipeCount = summary.missingRecipeCount;
+      upload.totalNetSales = summary.totalNetSales;
+      upload.totalQuantity = summary.totalQuantity;
+    }
+    await upload.save();
+
+    res.json({
+      summary: summarize(upload.items || [], upload),
+      name: upload.originalName,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+r.delete("/uploads/:id", async (req: any, res, next) => {
+  try {
+    const deleted = await MenuBreakdownUpload.findOneAndDelete({
+      _id: req.params.id,
+      restaurant: req.user!.restaurantId,
+    });
+    if (!deleted) {
+      res.status(404).json({ error: "Upload not found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 function parseCsv(text: string) {
   try {
@@ -136,13 +256,6 @@ function toNumber(value: any) {
   if (value === undefined || value === null) return undefined;
   const num = Number(String(value).replace(/[^0-9.-]/g, ""));
   return Number.isFinite(num) ? num : undefined;
-}
-
-function inferBeverage(category: string, name: string) {
-  const source = `${category} ${name}`.toLowerCase();
-  return /wine|beer|cocktail|liquor|spirit|vodka|whiskey|gin|tequila|mezcal|champagne|soda|water|beer|bar/.test(
-    source
-  );
 }
 
 function normalizeRecords(rows: any[]): BreakdownItem[] {
@@ -177,7 +290,7 @@ function normalizeRecords(rows: any[]): BreakdownItem[] {
       discount: discount ?? undefined,
       netSales: netSales ?? undefined,
       hasRecipe: false,
-      isBeverage: inferBeverage(category, name),
+      isBeverage: null,
     });
   }
 
@@ -192,6 +305,70 @@ function parseDateRangeFromName(name: string) {
   const endDate = new Date(end);
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return {};
   return { periodStart: startDate, periodEnd: endDate };
+}
+
+function summarize(items: BreakdownItem[], upload: any) {
+  const missingRecipeCount = items.filter((i) => !i.hasRecipe).length;
+  const totalNetSales = items.reduce(
+    (sum, i) => sum + (i.netSales ?? 0),
+    0
+  );
+  const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+  return {
+    totalItems: items.length,
+    missingRecipeCount,
+    totalNetSales,
+    totalQuantity,
+    periodStart: upload?.periodStart,
+    periodEnd: upload?.periodEnd,
+  };
+}
+
+async function rehydrateItemsFromStoredData(
+  buffer: Buffer,
+  restaurantId: string
+) {
+  const text = buffer.toString("utf8");
+  const normalized = normalizeRecords(parseCsv(text));
+  const names = [...new Set(normalized.map((i) => i.name.toLowerCase()))];
+  const hintMap = await fetchBeverageHints(names, restaurantId);
+  const existing = await MenuItem.find({
+    restaurant: restaurantId,
+    name: { $in: names },
+  }).select("name");
+  const existingNames = new Set(existing.map((m) => m.name.toLowerCase()));
+  return normalized.map((item) => ({
+    ...item,
+    hasRecipe: existingNames.has(item.name.toLowerCase()),
+    isBeverage:
+      hintMap.get(item.name.toLowerCase()) ?? null,
+  }));
+}
+
+async function fetchBeverageHints(names: string[], restaurantId: string) {
+  if (!names.length) return new Map<string, boolean | null>();
+  const rows = await MenuBreakdownUpload.aggregate([
+    { $match: { restaurant: restaurantId } },
+    { $unwind: "$items" },
+    {
+      $addFields: {
+        lowerName: { $toLower: "$items.name" },
+      },
+    },
+    { $match: { lowerName: { $in: names } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: "$lowerName",
+        isBeverage: { $first: "$items.isBeverage" },
+      },
+    },
+  ]);
+  const map = new Map<string, boolean | null>();
+  rows.forEach((r: any) => {
+    map.set(r._id, r.isBeverage);
+  });
+  return map;
 }
 
 export default r;
