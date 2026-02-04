@@ -24,6 +24,20 @@ const MenuBreakdownUploadSchema = new Schema(
     missingRecipeCount: { type: Number, default: 0 },
     totalNetSales: { type: Number, default: 0 },
     totalQuantity: { type: Number, default: 0 },
+    items: [
+      {
+        name: { type: String, required: true },
+        category: { type: String, default: "Uncategorized" },
+        modifier: { type: String },
+        avgPrice: { type: Number },
+        quantity: { type: Number, required: true },
+        grossSales: { type: Number },
+        discount: { type: Number },
+        netSales: { type: Number },
+        hasRecipe: { type: Boolean, default: false },
+        isBeverage: { type: Boolean, default: null },
+      },
+    ],
   },
   { timestamps: true }
 );
