@@ -2,7 +2,7 @@
 
 Multi-tenant restaurant inventory app with an Express/Mongo API and a Vite/React frontend. Current scope covers auth, units, ingredients with adjustments, menu items with recipes, and invoice PDF import that creates missing items and updates stock.
 
-## Current State (Dec 2024)
+## Current State (Dec 2025)
 - **Authentication**: Email/password signup/login issuing JWTs; restaurants are created on signup and all data is scoped per restaurant via middleware.
 - **Units**: CRUD for measurement units with precision; UI table with inline edit.
 - **Ingredients**: CRUD with category, base unit, par level, and current quantity. Supports stock adjustments with reason logging and soft delete (active flag). UI shows to-order amount.
